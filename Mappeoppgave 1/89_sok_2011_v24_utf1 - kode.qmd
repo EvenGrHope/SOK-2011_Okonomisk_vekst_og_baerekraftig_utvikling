@@ -1,0 +1,306 @@
+---
+title: "SOK-2011 v.2024: Utfordring 1 - kode"
+author: "89"
+date: last-modified
+date-format: iso
+execute: 
+  echo: TRUE
+  warning: FALSE
+format: 
+  pdf:
+    fig-pos: "H"
+editor: visual
+lang: no
+---
+
+# Utfordring 1.1
+
+Dette dokumentet inneholder kodene til figurene i utfordring 1, i emnet SOK-2011. Kodene tar utgangspunkt i støtten gitt i oppgaveteksten.
+
+### Oppgave C)
+
+```{r, message = FALSE, warning = FALSE}
+# Nullstiller minnet.
+rm(list = ls())
+
+# Laster inn pakker.
+suppressPackageStartupMessages(library(tidyverse))
+```
+
+```{r}
+# Definerer intervall for kapitalintensiteten.
+k <- seq(0, 3000, by = 1)
+
+# Legger intervallet i et dataframe. 
+df <- data.frame(k)
+```
+
+```{r, message = FALSE}
+# Definer akser og parameter til vi skal tegne figurene.
+axes_1 <- ggplot(df, aes(k)) +
+  labs(x="k", y="sy, nk") +
+  theme(axis.title = element_text(size = 10),
+        plot.title = element_text(size = 10),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"), 
+        axis.title.x = element_text(hjust = 1),
+        axis.title.y = element_text(angle = 0, vjust = 1, hjust=1)) + 
+  coord_fixed(ratio = 1) + 
+  scale_x_continuous(limits = c(0, 1200), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 45), expand = c(0, 0)) + 
+  coord_fixed(ratio = (1200 - 0) / (45 - 0)) 
+```
+
+#### Figur 1.1)
+
+```{r}
+# Definerer rammeverk for modellen.
+a <- 0.3
+s <- 0.1
+n <- 0.04
+A <- 50
+```
+
+```{r}
+# Definerer funksjoner for tegning av grafer. 
+sy <- function(k) (s*A*k^a) 
+nk <- function(k) (n*k)
+
+# Finner steady state.
+ss_k <- ((s*A/(n))^(1/(1-a)))
+ss_nk <- (n*((s*A/(n))^(1/(1-a))))
+```
+
+```{r}
+# Lager figur 1.1.
+figur_1 <- axes_1 +
+  stat_function(df, fun=sy, mapping = aes(), color = "#FF8000") +
+  stat_function(df, fun=nk, mapping = aes(), color = "#228B22") +
+  annotate("text", x = 600, y = 36, label=expression(sy)) +
+  annotate("text", x = 600, y = 27, label=expression(nk)) +
+  geom_point(x = ss_k, y = ss_nk, color = "#D2042D")+
+  geom_segment(aes(x = ss_k, xend = ss_k, y = 0, yend = ss_nk), 
+               linetype = "dashed", color = "#D2042D") +
+  geom_segment(aes(x = 0, xend = ss_k, y = ss_nk, yend = ss_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  annotate("text", x = ss_k + 60, y = 2, label=expression(k^{ss}))
+```
+
+```{r, warning = FALSE}
+# Viser figur 1.1.
+figur_1
+```
+
+```{r}
+# Viser nivået på ss.
+print(ss_k)
+print(ss_nk)
+```
+
+#### Figur 1.2)
+
+```{r}
+# Setter opp nye paramterer for endring i spareraten.
+s0 <- 0.07
+s1 <- 0.08
+n <- 0.04
+A <- 50
+```
+
+```{r}
+# Setter opp nye funksjoner for endring i spareraten. 
+s0y <- function(k) (s0*A*k^a)
+s1y <- function(k) (s1*A*k^a)
+nk <- function(k) (n*k)
+
+# Finner steady state.
+ss0_k <- ((s0*A/(n))^(1/(1-a)))
+ss1_k <- ((s1*A/(n))^(1/(1-a)))
+ss0_nk <- (n*((s0*A/(n))^(1/(1-a))))
+ss1_nk <- (n*((s1*A/(n))^(1/(1-a))))
+```
+
+```{r}
+# Lager figur 1.2.
+figur_2 <- axes_1 +
+  stat_function(df, fun=s0y, mapping = aes(), color = "#FF8000") +
+  stat_function(df, fun=s1y, mapping = aes(), color = "#2173B8") +
+  stat_function(df, fun=nk, mapping = aes(), color = "#228B22") +
+  annotate("text", x = 960, y = 25, label=expression(s0*y)) +
+  annotate("text", x = 960, y = 30, label=expression(s1*y)) +
+  annotate("text", x = 980, y = 37, label=expression(n*k)) + 
+  geom_point(x = ss0_k, y = ss0_nk, color = "#D2042D") +
+  geom_point(x = ss1_k, y = ss1_nk, color = "#D2042D") +
+  geom_segment(aes(x = ss0_k, xend = ss0_k, y = 0, yend = ss0_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  geom_segment(aes(x = 0, xend = ss0_k, y = ss0_nk, yend = ss0_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  geom_segment(aes(x = ss1_k, xend = ss1_k, y = 0, yend = ss1_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  geom_segment(aes(x = 0, xend = ss1_k, y = ss1_nk, yend = ss1_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  annotate("text", x = ss0_k + 60, y = 2, label=expression(k^{ss0})) +
+  annotate("text", x = ss1_k + 60, y = 2, label=expression(k^{ss1}))
+```
+
+```{r, warning = FALSE}
+# Viser figur 1.2.
+figur_2
+```
+
+```{r}
+# Viser nivået på steady state. 
+print(ss0_k)
+print(ss1_k)
+print(ss0_nk)
+print(ss1_nk)
+```
+
+#### Figur 1.3)
+
+```{r}
+# Setter opp nye paramterer for endring i befolkningsvekstraten.
+s <- 0.07
+n0 <- 0.04
+n1 <- 0.05
+A <- 50
+```
+
+```{r}
+# Setter opp nye funksjoner for endring i befolkningsvekstraten.
+sy <- function(k) (s*A*k^a)
+n0k <- function(k) (n0*k)
+n1k <- function(k) (n1*k)
+
+# Finner steady state. 
+ss0_k <- ((s*A/(n0))^(1/(1-a)))
+ss1_k <- ((s*A/(n1))^(1/(1-a)))
+ss0_nk <- (n0*((s*A/(n0))^(1/(1-a))))
+ss1_nk <- (n1*((s*A/(n1))^(1/(1-a))))
+```
+
+```{r}
+# Lager figur 1.3.
+figur_3 <- axes_1+
+  stat_function(df, fun=sy, mapping = aes(), color = "#FF8000") +
+  stat_function(df, fun=n0k, mapping = aes(), color = "#228B22") +
+  stat_function(df, fun=n1k, mapping = aes(), color = "#2173B8") +
+  annotate("text", x = 900, y = 25, label=expression(s*y)) +
+  annotate("text", x = 800, y = 35, label=expression(n0k)) +
+  annotate("text", x = 600, y = 35, label=expression(n1k)) + 
+  geom_point(x = ss0_k, y = ss0_nk, color = "#D2042D") +
+  geom_point(x = ss1_k, y = ss1_nk, color = "#D2042D") +
+  geom_segment(aes(x = ss0_k, xend = ss0_k, y = 0, yend = ss0_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  geom_segment(aes(x = 0, xend = ss0_k, y = ss0_nk, yend = ss0_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  geom_segment(aes(x = ss1_k, xend = ss1_k, y = 0, yend = ss1_nk), 
+               linetype = "dashed", color = "#D2042D") + 
+  geom_segment(aes(x = 0, xend = ss1_k, y = ss1_nk, yend = ss1_nk), 
+               linetype = "dashed", color = "#D2042D") +
+  annotate("text", x = ss0_k + 60, y = 2, label=expression(k^{ss0}))+
+  annotate("text", x = ss1_k + 60, y = 2, label=expression(k^{ss1}))
+```
+
+```{r, warning = FALSE}
+# Viser figur 1.3.
+figur_3
+```
+
+```{r}
+# Viser nivået pCå steady state. 
+print(ss0_k)
+print(ss1_k)
+print(ss0_nk)
+print(ss1_nk)
+```
+
+# Utfordring 1.2
+
+### Ubetinget konvergems
+
+```{r}
+# Definerer rammeverk for modellen.
+a <- 0.3
+s <- 0.1
+n <- 0.04
+A <- 50
+```
+
+```{r}
+# Definerer funksjoner for tegning av grafer. 
+sy <- function(k) (s*A*k^a) 
+nk <- function(k) (n*k)
+```
+
+```{r}
+# Lager figur 2.1.
+figur_4 <- axes_1 +
+  stat_function(df, fun=sy, mapping = aes(), color = "#FF8000") +
+  stat_function(df, fun=nk, mapping = aes(), color = "#228B22") +
+  annotate("text", x = 600, y = 36, label=expression(sy)) +
+  annotate("text", x = 600, y = 27, label=expression(nk)) +
+  geom_point(x = ss_k, y = ss_nk, color = "#D2042D") +
+  geom_point(x = 500,  y = 32.18, color = "#D2042D") +
+  geom_point(x = 300,  y = 27.6,  color = "#D2042D") +
+  geom_segment(aes(x = ss_k, xend = ss_k, y = 0, yend = ss_nk), 
+               linetype = "dashed", color = "#D2042D") +
+  geom_segment(aes(x = 500, xend = 500, y = 0, yend = 32.18),
+               linetype = "dashed", color = "#D2042D") +
+  geom_segment(aes(x = 300, xend = 300, y = 0, yend = 27.6),
+               linetype = "dashed", color = "#D2042D") +
+  annotate("text", x = ss_k + 60, y = 2, label = expression(k^{ss})) +
+  annotate("text", x = 500 + 60,  y = 2, label = expression(k^{2})) +
+  annotate("text", x = 300 + 60,  y  =2, label = expression(k^{1}))
+```
+
+```{r, warning = FALSE}
+# Viser figur 2.1.
+figur_4
+```
+
+### Betinget konvergens
+
+```{r}
+# Definerer rammeverk for modellen.
+a <- 0.3
+s0 <- 0.07
+s1 <- 0.08
+n0 <- 0.04
+n1 <- 0.05
+A <- 50
+```
+
+```{r}
+# Definerer funksjoner for tegning av grafer. 
+s0y <- function(k) (s0*A*k^a)
+s1y <- function(k) (s1*A*k^a)
+n0k <- function(k) (n0*k)
+n1k <- function(k) (n1*k)
+```
+
+```{r}
+# Lager figur 2.2.
+figur_5 <- axes_1 +
+  stat_function(df, fun=s0y, mapping = aes(), color = "#FF8000") +
+  stat_function(df, fun=s1y, mapping = aes(), color = "#2173B8") +
+  stat_function(df, fun=n0k, mapping = aes(), color = "#228B22") +
+  stat_function(df, fun=n1k, mapping = aes(), color = "#702963") +
+  annotate("text", x = 1100, y = 27, label=expression(s1y)) +
+  annotate("text", x = 1100, y = 31, label=expression(s2y)) +
+  annotate("text", x = 720, y = 40,  label=expression(n1k)) +
+  annotate("text", x = 920, y = 40,  label=expression(n2k)) +
+  geom_point(x = 720, y = 28.8, color = "#D2042D") +
+  geom_point(x = 430, y = 21.5, color = "#D2042D") +
+  geom_segment(aes(x = 720, xend = 720, y = 0, yend = 28.8), 
+               linetype = "dashed", color = "#D2042D") +
+  geom_segment(aes(x = 430, xend = 430, y = 0, yend = 21.5),
+               linetype = "dashed", color = "#D2042D") +
+  annotate("text", x = 720 + 60,  y = 2, label = expression(k^{2})) +
+  annotate("text", x = 430 + 60,  y  =2, label = expression(k^{1})) 
+```
+
+```{r, warning = FALSE}
+# Viser figur 2.2.
+figur_5
+```

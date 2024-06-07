@@ -1,0 +1,372 @@
+---
+title: "SOK-2011 v.2024: Utfordring 2 - kode"
+author: "89"
+date: last-modified
+date-format: iso
+execute: 
+  echo: TRUE
+  warning: FALSE
+format: 
+  pdf:
+    fig-pos: "H"
+editor: visual
+lang: no
+---
+
+Dette dokumentet inneholder kodene til figurene i utfordring 2, i emnet SOK-2011. Kodene tar utgangspunkt i støtten gitt i oppgaveteksten.
+
+# Forberedelser
+
+```{r, messages = FALSE, warning = FALSE}
+# Nullstiller minnet.
+rm(list = ls())
+
+# Laster inn pakker.
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(WDI))
+suppressPackageStartupMessages(library(countrycode))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(scales))
+```
+
+```{r}
+# Definerer egendefinert tema.
+theme_mod <- function() {
+  theme_minimal() +
+    theme(
+      plot.background = element_rect(fill = "white", color = NA),
+      plot.margin = unit(c(5, 10, 5, 10), units = "mm"),
+      plot.title = element_text(face = "bold.italic", color = "gray10"),
+      axis.title = element_text(face = "bold", color = "gray10"),
+      axis.text = element_text(color = "gray10"),
+      legend.text = element_text(color = "gray10"),
+      legend.title = element_text(face = "bold", color = "gray10"),
+      panel.grid = element_line(color = "gray60"),
+      axis.text.x = element_text(angle = 0, vjust = 1, hjust = 1)
+    ) }
+```
+
+# Utfordring 2.2
+
+```{r}
+# Laster inn data.
+df_01 <- WDI(
+  country = "all",
+  indicator = c("gdppc" = "NY.GDP.PCAP.PP.KD"),
+  start = 1999,
+  end = 2019,
+  extra = TRUE)
+
+df_02 <- WDI(
+  country = "all",
+  indicator = c("savings" = "NY.ADJ.NNAT.GN.ZS", "popgrowth" = "SP.POP.GROW"),
+  start = 2015,
+  end = 2019,
+  extra = TRUE)
+
+df_04 <- WDI(
+  country = "all",
+  indicator = c("hci_index" = "HD.HCI.OVRL"),
+  start = 2015,
+  end = 2019,
+  extra = TRUE)
+
+df_05 <- WDI(
+  country = "all",
+  indicator = c("nry" = "NY.ADJ.DRES.GN.ZS"),
+  start = 2010,
+  end = 2015,
+  extra = TRUE)
+
+# Definerer relevant tidsperiode.
+start_year_gdp_01 <- 2015
+start_year_gdp_02 <- 1999
+end_year_gdp_01 <- 2019
+end_year_gdp_02 <- 2005
+```
+
+### Oppgave B)
+
+#### NIVÅ og VEKST i BNP per innbygger mellom 2015 - 2019
+
+```{r}
+# NIVÅ og VEKST i BNP per innbygger mellom 2015 - 2019.
+# Filtrerer data.
+df_01_subset_01 <- df_01[df_01$year %in% start_year_gdp_01:end_year_gdp_01, ]
+
+# Lager et datasett med informasjon om gj.snittlig nivå på, og vekst i BNP per innbygger.
+df_01_gdp_01 <- df_01_subset_01 %>%
+  filter(iso3c != "", income != "Aggregates") %>%
+  mutate(year = as.numeric(year)) %>%
+  select(country, region, income, year, gdppc) %>%
+  drop_na(gdppc) %>%
+  group_by(country) %>%
+  arrange(country, year) %>%
+  mutate(avg_gdppc2019 = mean(gdppc),
+         gdpgrowth = (log(gdppc) - lag(log(gdppc))) * 100,
+         gy = mean(gdpgrowth, na.rm = TRUE)) %>%
+  arrange(desc(year)) %>%
+  slice(1) %>%
+  select(-gdppc,
+         -gdpgrowth) %>%
+  ungroup()
+```
+
+#### Initielt NIVÅ på BNP per innbygger
+
+```{r}
+# Filtrerer data.
+df_01_subset_02 <- df_01[df_01$year %in% start_year_gdp_02:end_year_gdp_02, ]
+
+# Lager et datasett med initialt nivå på BNP per innbygger.
+df_01_gdp_02 <- df_01_subset_02 %>%
+  filter(iso3c != "", income != "Aggregates") %>%
+  mutate(year = as.numeric(year)) %>%
+  select(country, year, gdppc) %>%
+  drop_na(gdppc) %>%
+  group_by(country) %>%
+  arrange(country, year) %>%
+  filter(year == min(year)) %>%
+  select(country, gdppc_0 = gdppc, year_0 = year) %>%
+  mutate(ln_gdppc_0 = log(gdppc_0)) %>%
+  ungroup()
+```
+
+#### Kombinerer og rydder datasettene
+
+```{r}
+# Lager et datasett som kombinerer datasettene ovenfor.
+df_gdp <- df_01_gdp_01 %>%
+  left_join(df_01_gdp_02, by = "country")
+
+# Rydder i datasettet.
+colnames(df_gdp) <- c("country", "Region", "Income", "Year_2019", "Avg_GDP_Per_Cap_2015_2019", "Avg_Yearly_Growth",
+                      "Avg_GDP_Per_cap_1999_2005", "Year_1999", "LN_GDP_Per_cap_1999_2005")
+
+# Fjerner land som ikke har data fra intervallet 1999-2005.
+df_gdp <- df_gdp %>%
+  filter(Year_1999 == 1999)
+```
+
+#### Beregning av variabler knyttet til sparing og befolkningsvekst
+
+```{r}
+# Lager et datasett med info. om gj.snittlig nivå på sparing.
+df_savings <- df_02 %>%
+  filter(iso3c != "", income != "Aggregates") %>%
+  mutate(year = as.numeric(year)) %>%
+  select(country, year, savings) %>%
+  drop_na(savings) %>%
+  group_by(country) %>%
+  arrange(country, year) %>%
+  mutate(AVG_Savings = mean(savings)) %>%
+  slice(1) %>%
+  select(country, AVG_Savings) %>%
+  ungroup()
+
+# Laget er datasett med info. om gj.snittlig nivå på befolkningsvekst.
+df_pop <- df_02 %>%
+  filter(iso3c != "", income != "Aggregates") %>%
+  mutate(year = as.numeric(year)) %>%
+  select(country, year, popgrowth) %>%
+  drop_na(popgrowth) %>%
+  group_by(country) %>%
+  arrange(country, year) %>%
+  mutate(AVG_popgrowth = mean(popgrowth)) %>%
+  slice(1) %>%
+  select(country, AVG_popgrowth) %>%
+  ungroup()
+```
+
+#### Kombinerer og rydder datasettene
+
+```{r}
+# Kombinerer datasettene.
+df_03 <- df_gdp %>%
+  left_join(df_savings, by = "country") %>%
+  left_join(df_pop, by = "country")
+```
+
+#### Figur 2.1
+
+```{r, warning = FALSE, message = FALSE}
+# Lager figur som viser spareraten og BNP per innbygger.
+fig_01 <- ggplot(df_03, aes(x = AVG_Savings, y = Avg_GDP_Per_Cap_2015_2019)) +
+  geom_point(color = "#294643") +
+  geom_smooth(method = lm, se = FALSE, color = "orange") +
+  labs(x = "Sparerate", y = "BNP per innbygger",
+       title = " ") +
+  theme_mod() +
+  scale_y_continuous(labels = comma)
+
+# Viser figuren.
+fig_01
+```
+
+#### Figur 2.2
+
+```{r,warning = FALSE, message = FALSE}
+# Lager figur som viser befolkningsvekstraten og BNP per innbygger.
+fig_02 <- ggplot(df_03, aes(x = AVG_popgrowth, y = Avg_GDP_Per_Cap_2015_2019)) +
+  geom_point(color = "#294643") +
+  geom_smooth(method = lm, se = FALSE, color = "orange") +
+  labs(x = "Befolkningsvekstrate", y = "BNP per innbygger",
+       title = " ") +
+  theme_mod() +
+  scale_y_continuous(labels = comma)
+
+# Viser figuren.
+fig_02
+```
+
+#### Regresjonsmodell
+
+```{r}
+# Setter opp regresjonsmodellen. 
+reg_01 <- lm(Avg_GDP_Per_Cap_2015_2019 ~ AVG_Savings + AVG_popgrowth, 
+             data = df_03)
+
+# Viser resultat.
+summary(reg_01)
+```
+
+# Utfordring 2.3
+
+#### Beregning av variabler knyttet til kvalitet på arbeid
+
+```{r}
+# Lager et datasett med info. om gj.snittlig utdanningsnivå.
+df_educ <- df_04 %>%
+  filter(iso3c != "") %>%
+  mutate(year = as.numeric(year)) %>%
+  select(country, year, hci_index) %>%
+  drop_na(hci_index) %>%
+  group_by(country) %>%
+  arrange(country, year) %>%
+  mutate(hci = mean(hci_index)) %>%
+  slice(1) %>%
+  select(country, hci) %>%
+  ungroup()
+```
+
+#### Beregning av variabler knyttet til forbruk av naturressurser
+
+```{r}
+# Lager et datasett med info. om gj.snittlig naturressurs forbruk. 
+df_natural <- df_05 %>%
+  filter(iso3c != "", income != "Aggregates") %>%
+  mutate(year = as.numeric(year)) %>%
+  select(country, year, nry) %>%
+  drop_na(nry) %>%
+  group_by(country) %>%
+  arrange(country, year) %>%
+  mutate(u = mean(nry)) %>%
+  slice(1) %>%
+  select(country, u) %>%
+  ungroup()
+```
+
+#### Setter sammen datasettene
+
+```{r}
+# Setter sammen datasettene.
+df_06 <- df_03 %>%
+  left_join(df_educ, by = "country") %>%
+  left_join(df_natural, by = "country")
+```
+
+#### Figur 3.1
+
+```{r,warning = FALSE, message = FALSE}
+# Lager figur som viser befolkningsvekstraten og BNP per innbygger.
+fig_03 <- ggplot(df_06, aes(x = hci, y = Avg_Yearly_Growth)) +
+  geom_point(color = "#294643") +
+  geom_smooth(method = lm, se = FALSE, color = "orange") +
+  labs(x = "Humankapital, utdanning", y = "Vekstraten i BNP per innbygger",
+       title = " ") +
+  theme_mod() +
+  scale_x_continuous(labels = comma)
+
+# Viser figuren.
+fig_03
+```
+
+#### Figur 3.2
+
+```{r,warning = FALSE, message = FALSE}
+# Lager figur som viser befolkningsvekstraten og BNP per innbygger.
+fig_04 <- ggplot(df_06, aes(x = u, y = Avg_Yearly_Growth)) +
+  geom_point(color = "#294643") +
+  geom_smooth(method = lm, se = FALSE, color = "orange") +
+  labs(x = "Forbruk av naturressurser", y = "Vekstraten i BNP per innbygger",
+       title = " ") +
+  theme_mod() +
+  scale_x_continuous(labels = comma)
+
+# Viser figuren.
+fig_04
+```
+
+#### Figur 3.3
+
+```{r,warning = FALSE, message = FALSE}
+# Lager figur som viser befolkningsvekstraten og BNP per innbygger.
+fig_05 <- ggplot(df_06, aes(x = LN_GDP_Per_cap_1999_2005, 
+                            y = Avg_Yearly_Growth)) +
+  geom_point(color = "#294643") +
+  geom_smooth(method = lm, se = FALSE, color = "orange") +
+  labs(x = "Initialt niva pa BNP per innbygger (LOG)", 
+       y = "Vekstraten i BNP per innbygger",
+       title = " ") +
+  theme_mod() +
+  scale_x_continuous(labels = comma)
+
+# Viser figuren.
+fig_05
+```
+
+#### Regresjonsmodell
+
+```{r}
+# Setter opp regresjonsmodellen. 
+reg_02 <- lm(Avg_Yearly_Growth ~ AVG_popgrowth + AVG_Savings + hci + u +
+               LN_GDP_Per_cap_1999_2005, data = df_06)
+
+# Viser regresonsmodellen.
+summary(reg_02)
+```
+
+## Utfordring 2.1
+
+```{r}
+# Velger variablene jeg trenger.
+table_01 <- df_06 %>%
+  select(Avg_GDP_Per_Cap_2015_2019, Avg_GDP_Per_cap_1999_2005, Avg_Yearly_Growth,
+         AVG_Savings, AVG_popgrowth, hci, u)
+
+# Bytter ut NA verdier med 0.
+table_01[is.na(table_01)] <- 0
+
+# Lager en funksjon som beregner mean, sd, min og max.
+Calc_Stats <- function(x) {
+  c(mean = mean(x), sd = sd(x), min = min(x), max = max(x))}
+
+# Bruker funksjonen over hele datasettet.
+resultat <- apply(table_01, 2, Calc_Stats)
+
+# Gjør til datasett.
+table_01 <- t(as.data.frame(resultat))
+
+# Skifter navn på radene.
+rownames(table_01) <- c("BNP per person (2015-2019)", 
+                        "BNP per person (1999-2015)",
+                        "BNP vekstrate", "Sparerate",
+                        "Befolkningsvekstrate", "Humankapital",
+                        "Forbruk av naturressurser")
+
+# Skifter navn på kolonnene.
+colnames(table_01) <- c("Gjennomsnitt", "Standardavvik", "Minimum", "Maksimum")
+
+# Viser tabellen. 
+print(table_01)
+```
